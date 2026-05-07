@@ -49,6 +49,11 @@ class AuthController extends Controller
     private function getServiceAccountForRest(): array
     {
         $credentialsPath = config('firebase.projects.mangoguard.credentials');
+        
+        // Convert relative path to absolute path
+        if ($credentialsPath && !str_starts_with($credentialsPath, '/')) {
+            $credentialsPath = base_path($credentialsPath);
+        }
 
         if ($credentialsPath && file_exists($credentialsPath)) {
             $json = json_decode((string) file_get_contents($credentialsPath), true);
@@ -142,6 +147,12 @@ class AuthController extends Controller
             $this->configureCaBundle();
 
             $credentialsPath = config('firebase.projects.mangoguard.credentials');
+            
+            // Convert relative path to absolute path
+            if ($credentialsPath && !str_starts_with($credentialsPath, '/')) {
+                $credentialsPath = base_path($credentialsPath);
+            }
+            
             $serviceAccount = null;
 
             if ($credentialsPath && file_exists($credentialsPath)) {
