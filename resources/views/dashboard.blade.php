@@ -7,7 +7,7 @@
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0 text-gray-800">Welcome back, {{ auth()->user()->name }}!</h1>
+            <h1 class="h3 mb-0 text-gray-800">Welcome back, {{ session('name', 'Farmer') }}!</h1>
             <p class="text-muted">Here's what's happening with your mango farm today.</p>
         </div>
         <div class="d-flex gap-2">
@@ -248,13 +248,19 @@ function fetchDashboardStats() {
             document.getElementById('totalReports').textContent = data.totalReports;
             document.getElementById('cecidFlyAlerts').textContent = data.cecidFlyAlerts;
             document.getElementById('fruitFlyAlerts').textContent = data.fruitFlyAlerts;
-            document.getElementById('totalHarvestVolume').textContent = data.totalHarvestVolume + ' tons';
+            document.getElementById('totalHarvestVolume').textContent = (data.totalHarvestVolume ?? '0') + ' tons';
             
             // Update trends
-            document.getElementById('reportsTrend').textContent = data.reportsTrend;
-            document.getElementById('cecidFlyTrend').textContent = data.cecidFlyTrend;
-            document.getElementById('fruitFlyTrend').textContent = data.fruitFlyTrend;
-            document.getElementById('harvestTrend').textContent = data.harvestTrend;
+            document.getElementById('reportsTrend').textContent = data.reportsTrend || 'No trend data';
+            document.getElementById('cecidFlyTrend').textContent = data.cecidFlyTrend || 'No trend data';
+            document.getElementById('fruitFlyTrend').textContent = data.fruitFlyTrend || 'No trend data';
+            document.getElementById('harvestTrend').textContent = data.harvestTrend || 'No trend data';
+        })
+        .catch(() => {
+            document.getElementById('reportsTrend').textContent = 'Failed to load';
+            document.getElementById('cecidFlyTrend').textContent = 'Failed to load';
+            document.getElementById('fruitFlyTrend').textContent = 'Failed to load';
+            document.getElementById('harvestTrend').textContent = 'Failed to load';
         });
 }
 
@@ -319,30 +325,33 @@ function initializeCharts() {
         }
     });
 
-    // Initialize Pest Distribution Chart
-    const distributionCtx = document.getElementById('pestDistributionChart').getContext('2d');
-    pestDistributionChart = new Chart(distributionCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Cecid Fly', 'Fruit Fly', 'Leaf Hopper'],
-            datasets: [{
-                data: [30, 50, 20],
-                backgroundColor: ['#dc3545', '#ffc107', '#17a2b8'],
-                hoverBackgroundColor: ['#c82333', '#e0a800', '#138496'],
-                hoverBorderColor: "rgba(234, 236, 244, 1)",
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
+    // Initialize Pest Distribution Chart only if canvas exists.
+    const distributionCanvas = document.getElementById('pestDistributionChart');
+    if (distributionCanvas) {
+        const distributionCtx = distributionCanvas.getContext('2d');
+        pestDistributionChart = new Chart(distributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cecid Fly', 'Fruit Fly', 'Leaf Hopper'],
+                datasets: [{
+                    data: [30, 50, 20],
+                    backgroundColor: ['#dc3545', '#ffc107', '#17a2b8'],
+                    hoverBackgroundColor: ['#c82333', '#e0a800', '#138496'],
+                    hoverBorderColor: "rgba(234, 236, 244, 1)",
+                }]
             },
-            cutout: '80%'
-        }
-    });
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                cutout: '80%'
+            }
+        });
+    }
 
     updateChart('weekly');
 }
@@ -351,25 +360,38 @@ function updateChart(period) {
     fetch(`{{ route("dashboard.chart") }}/${period}`)
         .then(response => response.json())
         .then(data => {
-            const dates = [...new Set(Object.values(data).flatMap(dataset => 
+            const normalizeDataset = (dataset) => {
+                if (Array.isArray(dataset)) return dataset;
+                if (dataset && typeof dataset === 'object') {
+                    return Object.entries(dataset).map(([date, count]) => ({ date, count }));
+                }
+                return [];
+            };
+            const normalized = Object.fromEntries(
+                Object.entries(data || {}).map(([pestType, values]) => [pestType, normalizeDataset(values)])
+            );
+            const dates = [...new Set(Object.values(normalized).flatMap(dataset =>
                 dataset.map(item => item.date)
             ))].sort();
             
             pestTrendChart.data.labels = dates;
             
-            Object.entries(data).forEach(([pestType, values]) => {
+            Object.entries(normalized).forEach(([pestType, values]) => {
                 const dataset = pestTrendChart.data.datasets.find(ds => 
                     ds.label.toLowerCase().includes(pestType.toLowerCase())
                 );
                 if (dataset) {
                     dataset.data = dates.map(date => {
                         const point = values.find(v => v.date === date);
-                        return point ? point.count : 0;
+                        return point ? Number(point.count) : 0;
                     });
                 }
             });
             
             pestTrendChart.update();
+        })
+        .catch(() => {
+            // Keep dashboard usable even when chart API fails.
         });
 }
 
@@ -378,7 +400,8 @@ function fetchRecentReports() {
         .then(response => response.json())
         .then(reports => {
             const container = document.querySelector('.list-group');
-            container.innerHTML = reports.map(report => `
+            const safeReports = Array.isArray(reports) ? reports : [];
+            container.innerHTML = safeReports.map(report => `
                 <a href="/pest-reports/${report.id}" class="list-group-item list-group-item-action">
                     <div class="d-flex w-100 justify-content-between">
                         <h6 class="mb-1">${report.title}</h6>
@@ -388,6 +411,10 @@ function fetchRecentReports() {
                     <small class="text-gray-500">Reported ${report.time_ago}</small>
                 </a>
             `).join('');
+        })
+        .catch(() => {
+            const container = document.querySelector('.list-group');
+            container.innerHTML = '<div class="p-3 text-muted">Unable to load recent reports.</div>';
         });
 }
 

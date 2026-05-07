@@ -12,10 +12,6 @@ class DashboardController extends Controller
     // Dashboard page
     public function index()
     {
-        // Optional: Check session
-        if (!session('supabase_user_id')) {
-            return redirect('/login');
-        }
         return view('dashboard');
     }
 

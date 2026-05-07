@@ -80,6 +80,18 @@
         .brand i {
             color: #ffa500;
         }
+        /* Fallback sizing when Tailwind utility classes are unavailable. */
+        nav .shrink-0 svg {
+            width: 36px;
+            height: 36px;
+            max-width: 36px;
+            max-height: 36px;
+            display: block;
+        }
+        nav svg:not(.farm-block svg) {
+            max-width: 24px;
+            max-height: 24px;
+        }
         @media (max-width: 991.98px) {
             .sidebar {
                 width: 100vw;
@@ -132,6 +144,7 @@
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    @yield('scripts')
     @stack('scripts')
 </body>
 </html>

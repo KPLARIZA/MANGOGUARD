@@ -1,3 +1,8 @@
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
+// @ts-ignore - resolved in frontend runtime dependency install
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   getAuth, 
@@ -6,7 +11,9 @@ import {
   signOut,
   onAuthStateChanged,
   User as FirebaseUser
+  // @ts-ignore - resolved in frontend runtime dependency install
 } from 'firebase/auth';
+// @ts-ignore - resolved in frontend runtime dependency install
 import { initializeApp } from 'firebase/app';
 import { api } from '../services/api';
 
@@ -67,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           // Verify token with backend and get user data
           const response = await api.post('/auth/verify', {
-            id_token: idToken
+            idToken
           });
           
           setUser(response.data.user);

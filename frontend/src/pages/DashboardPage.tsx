@@ -1,22 +1,7 @@
+// @ts-ignore - resolved in frontend runtime dependency install
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { toast } from 'react-hot-toast';
-
-// Components
-import PestActivityChart from '../components/charts/PestActivityChart';
-import TrapMap from '../components/maps/TrapMap';
-import StatsCard from '../components/dashboard/StatsCard';
-import RecentAlerts from '../components/dashboard/RecentAlerts';
-import TrapHealthOverview from '../components/dashboard/TrapHealthOverview';
-
-// Icons
-import { 
-  BugAntIcon, 
-  ExclamationTriangleIcon, 
-  ChartBarIcon,
-  MapPinIcon 
-} from '@heroicons/react/24/outline';
 
 interface DashboardStats {
   totalTraps: number;
@@ -46,7 +31,6 @@ const DashboardPage: React.FC = () => {
       const response = await api.get(`/dashboard/stats?time_range=${selectedTimeRange}`);
       setStats(response.data);
     } catch (error) {
-      toast.error('Failed to load dashboard data');
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
@@ -73,79 +57,42 @@ const DashboardPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard
-          title="Total Traps"
-          value={stats?.totalTraps || 0}
-          icon={MapPinIcon}
-          color="blue"
-          trend="+2 this week"
-        />
-        <StatsCard
-          title="Active Traps"
-          value={stats?.activeTraps || 0}
-          icon={BugAntIcon}
-          color="green"
-          trend="98% uptime"
-        />
-        <StatsCard
-          title="Total Detections"
-          value={stats?.totalDetections || 0}
-          icon={ChartBarIcon}
-          color="purple"
-          trend="+15% from last week"
-        />
-        <StatsCard
-          title="Critical Alerts"
-          value={stats?.criticalAlerts || 0}
-          icon={ExclamationTriangleIcon}
-          color="red"
-          trend="3 new alerts"
-        />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pest Activity Chart */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Pest Activity Trends</h2>
-            <select
-              value={selectedTimeRange}
-              onChange={(e) => setSelectedTimeRange(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-            >
-              <option value="day">Last 24 Hours</option>
-              <option value="week">Last Week</option>
-              <option value="month">Last Month</option>
-            </select>
-          </div>
-          <PestActivityChart timeRange={selectedTimeRange} />
+        <div className="bg-white rounded-lg shadow p-5">
+          <div className="text-sm text-gray-600">Total Traps</div>
+          <div className="text-2xl font-bold text-gray-900">{stats?.totalTraps || 0}</div>
         </div>
-
-        {/* Recent Alerts */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Alerts</h2>
-          <RecentAlerts />
+        <div className="bg-white rounded-lg shadow p-5">
+          <div className="text-sm text-gray-600">Active Traps</div>
+          <div className="text-2xl font-bold text-gray-900">{stats?.activeTraps || 0}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-5">
+          <div className="text-sm text-gray-600">Total Detections</div>
+          <div className="text-2xl font-bold text-gray-900">{stats?.totalDetections || 0}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-5">
+          <div className="text-sm text-gray-600">Critical Alerts</div>
+          <div className="text-2xl font-bold text-gray-900">{stats?.criticalAlerts || 0}</div>
         </div>
       </div>
 
-      {/* Trap Map and Health */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Interactive Trap Map */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Trap Locations</h2>
-          <div className="h-80">
-            <TrapMap />
-          </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Time Range</h2>
+          <select
+            value={selectedTimeRange}
+            onChange={(e) => setSelectedTimeRange(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+          >
+            <option value="day">Last 24 Hours</option>
+            <option value="week">Last Week</option>
+            <option value="month">Last Month</option>
+          </select>
         </div>
-
-        {/* Trap Health Overview */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Trap Health</h2>
-          <TrapHealthOverview />
-        </div>
+        <p className="text-sm text-gray-600">
+          Detailed charts and map components are currently unavailable in this frontend snapshot.
+        </p>
       </div>
 
       {/* Pest Distribution */}

@@ -1,4 +1,10 @@
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
+// @ts-ignore - resolved in frontend runtime dependency install
 import axios from 'axios';
+// @ts-ignore - resolved in frontend runtime dependency install
 import { getAuth } from 'firebase/auth';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';

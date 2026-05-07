@@ -35,6 +35,10 @@ Route::get('/firebase-proof', function () {
 });
 
 Route::get('/', function () {
+    if (session()->has('firebase_user_id')) {
+        return redirect('/dashboard');
+    }
+
     return redirect('/login');
 });
 
@@ -46,7 +50,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected Routes
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['firebase.auth'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/stats', [DashboardController::class, 'getDashboardStats'])->name('dashboard.stats');
