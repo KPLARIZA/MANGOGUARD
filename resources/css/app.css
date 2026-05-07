@@ -1,0 +1,111 @@
+/* MangoGuard Custom Styles */
+
+body {
+    background: #f4f6fb;
+    font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 240px;
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    color: #fff;
+    box-shadow: 2px 0 12px rgba(34, 74, 190, 0.08);
+    z-index: 1030;
+    padding-top: 2rem;
+    transition: width 0.2s;
+}
+
+.sidebar .brand {
+    font-size: 1.7rem;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 2.5rem;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+}
+.sidebar .brand i {
+    color: #ffa500;
+    font-size: 2rem;
+}
+
+.sidebar .nav-link {
+    color: #e3e6f0;
+    font-weight: 500;
+    padding: 0.85rem 2rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.3rem;
+    transition: background 0.2s, color 0.2s, padding 0.2s;
+    font-size: 1.08rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+.sidebar .nav-link i {
+    font-size: 1.2rem;
+}
+.sidebar .nav-link.active, .sidebar .nav-link:hover {
+    background: rgba(255,255,255,0.13);
+    color: #fff;
+    padding-left: 2.5rem;
+    box-shadow: 0 2px 8px rgba(34, 74, 190, 0.08);
+}
+.sidebar .sidebar-heading {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #bfc8e2;
+    padding: 0 2rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.7rem;
+    letter-spacing: 1px;
+}
+
+.main-content {
+    margin-left: 240px;
+    padding: 2.5rem 2.5rem 0 2.5rem;
+    min-height: 100vh;
+    transition: margin-left 0.2s;
+}
+
+@media (max-width: 991.98px) {
+    .sidebar {
+        width: 100vw;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid #e3e6f0;
+        box-shadow: none;
+        padding-top: 0.5rem;
+        background: #4e73df;
+    }
+    .main-content {
+        margin-left: 0;
+        padding: 1rem;
+    }
+}
+
+/* Custom scrollbar for sidebar */
+.sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: #bfc8e2 #4e73df;
+}
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: #bfc8e2;
+    border-radius: 4px;
+}
+
+/* Footer styling */
+footer {
+    color: #bfc8e2;
+    margin-top: 3rem;
+}
