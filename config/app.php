@@ -66,8 +66,6 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
-        // 👇 Supabase Service Provider
-        App\Providers\SupabaseServiceProvider::class,
     ],
 
     'aliases' => Facade::defaultAliases()->merge([

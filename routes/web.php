@@ -29,11 +29,6 @@ use App\Http\Controllers\FirebaseAuthController;
 | contains the "web" middleware group. Now create something great!
 |
 */
-Route::get('/firebase-proof', function () {
-    $auth = app(\Kreait\Firebase\Auth::class);
-    return $auth->listUsers(1);
-});
-
 Route::get('/', function () {
     if (session()->has('firebase_user_id')) {
         return redirect('/dashboard');
@@ -137,6 +132,6 @@ Route::middleware(['firebase.auth'])->group(function () {
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
 
-    // Firebase / Supabase Auth verification
+    // Firebase Auth verification
     Route::post('/auth/verify', [FirebaseAuthController::class, 'verify'])->name('auth.verify');
 });

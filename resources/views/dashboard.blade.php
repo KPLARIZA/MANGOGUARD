@@ -3,28 +3,52 @@
 @section('title', 'Dashboard')
 
 @section('content')
-<div class="container-fluid px-4">
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0 text-gray-800">Welcome back, {{ session('name', 'Farmer') }}!</h1>
-            <p class="text-muted">Here's what's happening with your mango farm today.</p>
-        </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-success btn-icon-split" onclick="window.location.href='{{ route('pest-reports.create') }}'">
-                <span class="icon text-white-50">
-                    <i class="fas fa-plus"></i>
-                </span>
-                <span class="text">New Report</span>
-            </button>
-            <button class="btn btn-info btn-icon-split" onclick="window.location.href='{{ route('dashboard.export') }}'">
-                <span class="icon text-white-50">
-                    <i class="fas fa-download"></i>
-                </span>
-                <span class="text">Export Data</span>
-            </button>
-        </div>
-    </div>
+<div class="container-fluid px-4 dashboard-page">
+    <div class="row g-4 dashboard-shell">
+        <aside class="col-12 col-lg-3 col-xl-2">
+            <div class="card shadow-sm dashboard-sidebar">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Dashboard Menu</h6>
+                </div>
+                <div class="card-body p-2">
+                    <a href="{{ route('traps.index') }}" class="btn btn-warning text-dark btn-icon-split text-decoration-none d-flex align-items-center w-100 mb-2 sidebar-action">
+                        <span class="icon text-body-secondary opacity-75">
+                            <i class="fas fa-spider" aria-hidden="true"></i>
+                        </span>
+                        <span class="text">Trap Insects</span>
+                    </a>
+                    <a href="{{ route('dashboard') }}" class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                        <i class="fas fa-chart-line me-2" aria-hidden="true"></i> Dashboard Overview
+                    </a>
+                    <a href="{{ route('pest-reports.index') }}" class="sidebar-link {{ request()->routeIs('pest-reports.*') ? 'active' : '' }}">
+                        <i class="fas fa-file-alt me-2" aria-hidden="true"></i> Pest Reports
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="col-12 col-lg-9 col-xl-10 dashboard-main">
+            <!-- Page Header -->
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 mb-4">
+                <div class="flex-grow-1">
+                    <h1 class="h3 mb-1 text-gray-800">Welcome back, {{ session('name', 'Farmer') }}!</h1>
+                    <p class="text-muted mb-0 small">Here's what's happening with your mango farm today.</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2 w-100 w-lg-auto justify-content-lg-end">
+                    <button type="button" class="btn btn-success btn-icon-split" onclick="window.location.href='{{ route('pest-reports.create') }}'">
+                        <span class="icon text-white-50">
+                            <i class="fas fa-plus" aria-hidden="true"></i>
+                        </span>
+                        <span class="text">New Report</span>
+                    </button>
+                    <button type="button" class="btn btn-info btn-icon-split text-white" onclick="window.location.href='{{ route('dashboard.export') }}'">
+                        <span class="icon text-white-50">
+                            <i class="fas fa-download" aria-hidden="true"></i>
+                        </span>
+                        <span class="text">Export Data</span>
+                    </button>
+                </div>
+            </div>
 
     <!-- Quick Stats -->
     <div class="row g-4">
@@ -213,6 +237,7 @@
                 </div>
             </div>
         </div>
+        </main>
     </div>
 </div>
 @endsection
@@ -471,18 +496,30 @@ function getSeverityClass(severity) {
 
 <style>
 /* Card Styles */
+.dashboard-page {
+    padding-top: 1rem;
+    padding-bottom: 1.25rem;
+}
+
+.dashboard-shell {
+    align-items: flex-start;
+}
+
 .card {
     border: none;
-    transition: all 0.3s ease;
+    border-radius: 0.85rem;
+    box-shadow: 0 0.2rem 1rem rgba(17, 24, 39, 0.06);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 0.85rem 1.4rem rgba(17, 24, 39, 0.12) !important;
 }
 
 .stat-card {
     border-left-width: 4px !important;
+    overflow: hidden;
 }
 
 /* Farm Map Styles */
@@ -533,6 +570,64 @@ function getSeverityClass(severity) {
 .btn-icon-split:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.dashboard-sidebar {
+    position: static;
+    border: 1px solid #eef2f7;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+}
+
+.dashboard-sidebar .card-header {
+    border-bottom: 1px solid #eef2f7;
+}
+
+.dashboard-sidebar .card-body {
+    padding: 0.65rem !important;
+}
+
+.sidebar-action {
+    border-radius: 0.65rem;
+    font-weight: 600;
+}
+
+.dashboard-main > .d-flex {
+    background: #ffffff;
+    border: 1px solid #eef2f7;
+    border-radius: 0.85rem;
+    padding: 1rem 1rem 1.05rem;
+    box-shadow: 0 0.2rem 1rem rgba(17, 24, 39, 0.05);
+}
+
+@media (min-width: 992px) {
+    .dashboard-sidebar {
+        position: sticky;
+        top: 1rem;
+    }
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.7rem 0.75rem;
+    border-radius: 0.65rem;
+    color: #4b5563;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-link:hover {
+    background-color: #f3f6fb;
+    color: #0d6efd;
+    transform: translateX(2px);
+}
+
+.sidebar-link.active {
+    background: linear-gradient(90deg, rgba(13, 110, 253, 0.16), rgba(13, 110, 253, 0.05));
+    color: #0d6efd;
+    box-shadow: inset 3px 0 0 #0d6efd;
 }
 
 /* Chart Styles */
@@ -586,10 +681,6 @@ function getSeverityClass(severity) {
 .bg-warning { background-color: #ffc107; }
 .bg-danger { background-color: #dc3545; }
 
-/* Spacing Utilities */
-.gap-2 { gap: 0.5rem; }
-.g-4 { gap: 1.5rem; }
-
 /* Loading Spinner */
 .spinner-border {
     width: 1rem;
@@ -609,7 +700,7 @@ function getSeverityClass(severity) {
 /* Card Header */
 .card-header {
     background-color: transparent;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+    border-bottom: 1px solid #eef2f7;
 }
 
 /* Dropdown Menu */
@@ -649,6 +740,12 @@ function getSeverityClass(severity) {
 .px-4 {
     padding-left: 1.5rem !important;
     padding-right: 1.5rem !important;
+}
+
+@media (max-width: 991.98px) {
+    .dashboard-main > .d-flex {
+        padding: 0.85rem;
+    }
 }
 </style>
 @endsection 

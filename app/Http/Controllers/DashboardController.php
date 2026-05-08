@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Services\SupabaseService;
+use App\Models\CropHarvest;
+use App\Models\PestAlert;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -16,20 +16,24 @@ class DashboardController extends Controller
     }
 
     // Get overall stats
-    public function getDashboardStats(SupabaseService $supabase)
+    public function getDashboardStats()
     {
         try {
-            $pestAlerts = $supabase->from('pest_alerts')->get() ?? [];
-            $harvestData = $supabase->from('crop_harvest')->get() ?? [];
-
-            $totalReports = count($pestAlerts);
-            $cecidFlyAlerts = collect($pestAlerts)
-                ->filter(fn($a) => isset($a['pest_type'], $a['created_at']) && $a['pest_type'] === 'Cecid Fly' && Carbon::parse($a['created_at'])->gte(Carbon::now()->subDays(30)))
+            $last30Days = Carbon::now()->subDays(30);
+            $totalReports = PestAlert::count();
+            $cecidFlyAlerts = PestAlert::where('created_at', '>=', $last30Days)
+                ->where(function ($query) {
+                    $query->where('pest_type', 'cecid_fly')
+                        ->orWhere('pest_type', 'Cecid Fly');
+                })
                 ->count();
-            $fruitFlyAlerts = collect($pestAlerts)
-                ->filter(fn($a) => isset($a['pest_type'], $a['created_at']) && $a['pest_type'] === 'Fruit Fly' && Carbon::parse($a['created_at'])->gte(Carbon::now()->subDays(30)))
+            $fruitFlyAlerts = PestAlert::where('created_at', '>=', $last30Days)
+                ->where(function ($query) {
+                    $query->where('pest_type', 'fruit_fly')
+                        ->orWhere('pest_type', 'Fruit Fly');
+                })
                 ->count();
-            $totalHarvestVolume = collect($harvestData)->filter(fn($h) => is_numeric($h['volume'] ?? null))->sum('volume');
+            $totalHarvestVolume = (float) CropHarvest::sum('volume');
 
             return response()->json([
                 'totalReports' => $totalReports,
@@ -44,22 +48,31 @@ class DashboardController extends Controller
     }
 
     // Chart data (with period logic)
-    public function getChartData(SupabaseService $supabase, $period = 'weekly')
+    public function getChartData($period = 'weekly')
     {
         try {
-            $pestAlerts = $supabase->from('pest_alerts')->get() ?? [];
+            $days = match ($period) {
+                'yearly' => 365,
+                'monthly' => 30,
+                default => 7,
+            };
 
-            $alerts = collect($pestAlerts)
-                ->filter(fn($a) => isset($a['pest_type'], $a['created_at']))
-                ->map(fn($a) => [
-                    'pest_type' => $a['pest_type'],
-                    'date' => Carbon::parse($a['created_at'])->format('Y-m-d'),
-                ]);
+            $alerts = PestAlert::query()
+                ->where('created_at', '>=', Carbon::now()->subDays($days))
+                ->get(['pest_type', 'created_at'])
+                ->map(function ($alert) {
+                    $type = strtolower(str_replace('_', ' ', (string) $alert->pest_type));
 
-            // Implement period filtering (e.g., last 7 days for 'weekly')
-            if ($period === 'weekly') {
-                $alerts = $alerts->filter(fn($a) => Carbon::parse($a['date'])->gte(Carbon::now()->subDays(7)));
-            }
+                    return [
+                        'pest_type' => match ($type) {
+                            'cecid fly' => 'Cecid Fly',
+                            'fruit fly' => 'Fruit Fly',
+                            'leaf hopper' => 'Leaf Hopper',
+                            default => ucwords($type),
+                        },
+                        'date' => Carbon::parse($alert->created_at)->format('Y-m-d'),
+                    ];
+                });
 
             $grouped = $alerts->groupBy(['pest_type', 'date'])
                 ->map(fn($dates) => $dates->count());
@@ -72,23 +85,25 @@ class DashboardController extends Controller
     }
 
     // Recent 5 reports
-    public function getRecentReports(SupabaseService $supabase)
+    public function getRecentReports()
     {
         try {
-            $pestAlerts = $supabase->from('pest_alerts')
-                ->orderBy('created_at', 'desc')
+            $pestAlerts = PestAlert::query()
+                ->latest('created_at')
                 ->limit(5)
-                ->get() ?? [];
+                ->get(['id', 'pest_type', 'severity', 'location', 'created_at']);
 
-            $sorted = collect($pestAlerts)
-                ->filter(fn($a) => isset($a['created_at'], $a['pest_type'], $a['severity'], $a['location']))
-                ->map(fn($report) => [
-                    'id' => $report['id'] ?? null,
-                    'title' => $report['pest_type'] . ' ' . $report['severity'],
-                    'location' => (isset($report['location']['block']) ? $report['location']['block'] : 'Unknown') . ', Section ' . ($report['location']['section'] ?? 'Unknown'),
-                    'severity' => $report['severity'],
-                    'time_ago' => Carbon::parse($report['created_at'])->diffForHumans(),
-                ]);
+            $sorted = $pestAlerts->map(function ($report) {
+                $type = ucwords(str_replace('_', ' ', (string) $report->pest_type));
+
+                return [
+                    'id' => $report->id,
+                    'title' => trim($type . ' ' . ($report->severity ?? '')),
+                    'location' => (string) ($report->location ?: 'Unknown'),
+                    'severity' => (string) ($report->severity ?: 'low'),
+                    'time_ago' => Carbon::parse($report->created_at)->diffForHumans(),
+                ];
+            });
 
             return response()->json($sorted);
         } catch (\Exception $e) {
@@ -98,10 +113,12 @@ class DashboardController extends Controller
     }
 
     // Export CSV
-    public function exportData(SupabaseService $supabase)
+    public function exportData()
     {
         try {
-            $pestAlerts = $supabase->from('pest_alerts')->get() ?? [];
+            $pestAlerts = PestAlert::query()
+                ->latest('created_at')
+                ->get(['created_at', 'pest_type', 'severity', 'location', 'notes']);
 
             $headers = [
                 'Content-Type' => 'text/csv',
@@ -113,16 +130,13 @@ class DashboardController extends Controller
                 fputcsv($file, ['Date', 'Pest Type', 'Severity', 'Location', 'Notes']);
 
                 foreach ($pestAlerts as $data) {
-                    $location = is_array($data['location'] ?? null) 
-                        ? (($data['location']['block'] ?? 'Unknown') . ', Section ' . ($data['location']['section'] ?? 'Unknown'))
-                        : ($data['location'] ?? 'Unknown');
-                    
+                    $type = ucwords(str_replace('_', ' ', (string) $data->pest_type));
                     fputcsv($file, [
-                        $data['created_at'] ?? '',
-                        $data['pest_type'] ?? '',
-                        $data['severity'] ?? '',
-                        $location,
-                        $data['notes'] ?? '',
+                        (string) ($data->created_at ?? ''),
+                        $type,
+                        (string) ($data->severity ?? ''),
+                        (string) ($data->location ?? 'Unknown'),
+                        (string) ($data->notes ?? ''),
                     ]);
                 }
 

@@ -3,23 +3,25 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Services\SupabaseService;
+use Kreait\Firebase\Contract\Auth as FirebaseAuth;
 
 class FirebaseAuthController extends Controller
 {
-    public function verify(Request $request, SupabaseService $supabase)
+    public function verify(Request $request, FirebaseAuth $firebaseAuth)
     {
         $request->validate([
             'idToken' => 'required|string',
         ]);
 
         try {
-            $user = $supabase->getUser($request->idToken);
+            $verifiedToken = $firebaseAuth->verifyIdToken($request->idToken);
+            $uid = (string) $verifiedToken->claims()->get('sub');
+            $user = $firebaseAuth->getUser($uid);
 
             return response()->json([
                 'message' => 'Authenticated',
-                'uid' => $user['id'],
-                'email' => $user['email'],
+                'uid' => $uid,
+                'email' => $user->email,
             ]);
 
         } catch (\Throwable $e) {

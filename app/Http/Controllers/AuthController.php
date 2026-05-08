@@ -6,6 +6,8 @@ use Google\Auth\Credentials\ServiceAccountCredentials;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Auth\SignIn\FailedToSignIn;
+use Kreait\Firebase\Contract\Auth as FirebaseAuthContract;
 use Kreait\Firebase\Factory;
 
 class AuthController extends Controller
@@ -28,22 +30,6 @@ class AuthController extends Controller
         }
 
         return $normalized;
-    }
-
-    private function configureCaBundle(): void
-    {
-        $caBundlePath = (string) env('FIREBASE_CA_BUNDLE', '');
-        $caBundlePath = trim($caBundlePath, "\"' ");
-        $caBundlePath = str_replace('\\', DIRECTORY_SEPARATOR, $caBundlePath);
-
-        if ($caBundlePath && file_exists($caBundlePath)) {
-            @ini_set('curl.cainfo', $caBundlePath);
-            @ini_set('openssl.cafile', $caBundlePath);
-            @putenv('SSL_CERT_FILE=' . $caBundlePath);
-            @putenv('CURL_CA_BUNDLE=' . $caBundlePath);
-        } else {
-            Log::warning('FIREBASE_CA_BUNDLE is missing or invalid.', ['path' => $caBundlePath]);
-        }
     }
 
     private function getServiceAccountForRest(): array
@@ -136,58 +122,66 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Service account payload for Kreait Factory (GRPC Firestore only).
+     *
+     * @return array<string, mixed>|string|null
+     */
+    private function resolveServiceAccountForFactory(): array|string|null
+    {
+        $credentialsPath = config('firebase.projects.mangoguard.credentials');
+
+        if ($credentialsPath && file_exists($credentialsPath)) {
+            return $credentialsPath;
+        }
+
+        if (
+            env('FIREBASE_PROJECT_ID') &&
+            env('FIREBASE_CLIENT_EMAIL') &&
+            env('FIREBASE_PRIVATE_KEY')
+        ) {
+            return [
+                'type' => 'service_account',
+                'project_id' => env('FIREBASE_PROJECT_ID'),
+                'private_key' => $this->normalizePrivateKey(env('FIREBASE_PRIVATE_KEY')),
+                'client_email' => env('FIREBASE_CLIENT_EMAIL'),
+                'token_uri' => 'https://oauth2.googleapis.com/token',
+            ];
+        }
+
+        return null;
+    }
+
     public function __construct()
     {
+        $this->auth = null;
+        $this->firestore = null;
+
         try {
-            $this->configureCaBundle();
-
-            $credentialsPath = config('firebase.projects.mangoguard.credentials');
-            $serviceAccount = null;
-
-            if ($credentialsPath && file_exists($credentialsPath)) {
-                $serviceAccount = $credentialsPath;
-            } elseif (
-                env('FIREBASE_PROJECT_ID') &&
-                env('FIREBASE_CLIENT_EMAIL') &&
-                env('FIREBASE_PRIVATE_KEY')
-            ) {
-                $privateKey = $this->normalizePrivateKey(env('FIREBASE_PRIVATE_KEY'));
-
-                $serviceAccount = [
-                    'type' => 'service_account',
-                    'project_id' => env('FIREBASE_PROJECT_ID'),
-                    'private_key' => $privateKey,
-                    'client_email' => env('FIREBASE_CLIENT_EMAIL'),
-                    'token_uri' => 'https://oauth2.googleapis.com/token',
-                ];
-            } else {
-                throw new \RuntimeException('Firebase credentials not configured. Set FIREBASE_CREDENTIALS or FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY.');
-            }
-
-            $factory = (new Factory)
-                ->withServiceAccount($serviceAccount)
-                ->withFirestoreClientConfig([
-                    'transport' => 'rest',
-                ]);
-            $this->auth = $factory->createAuth();
-
-            if (extension_loaded('grpc')) {
-                try {
-                    $this->firestore = $factory->createFirestore()->database();
-                } catch (\Throwable $firestoreError) {
-                    $this->firestore = null;
-                    Log::warning('Firestore unavailable, continuing with Firebase Auth only.', [
-                        'error' => $firestoreError->getMessage(),
-                    ]);
-                }
-            } else {
-                $this->firestore = null;
-            }
+            $this->auth = app(FirebaseAuthContract::class);
         } catch (\Throwable $e) {
             $this->firebaseInitError = $e->getMessage();
-            Log::error('Firebase init failed', ['error' => $e->getMessage()]);
-            $this->auth = null;
-            $this->firestore = null;
+            Log::error('Firebase Auth init failed', ['error' => $e->getMessage()]);
+
+            return;
+        }
+
+        if (! extension_loaded('grpc')) {
+            return;
+        }
+
+        $serviceAccount = $this->resolveServiceAccountForFactory();
+        if ($serviceAccount === null) {
+            return;
+        }
+
+        try {
+            $factory = (new Factory)->withServiceAccount($serviceAccount);
+            $this->firestore = $factory->createFirestore()->database();
+        } catch (\Throwable $firestoreError) {
+            Log::warning('Firestore unavailable, continuing with Firebase Auth only.', [
+                'error' => $firestoreError->getMessage(),
+            ]);
         }
     }
 
@@ -205,68 +199,92 @@ class AuthController extends Controller
         return view('auth.register');
     }
 
-    //  LOGIN
-   public function login(Request $request)
-{
-    $request->validate([
-        'email' => 'required|email',
-        'password' => 'required',
-    ]);
-
-    if (!$this->auth) {
-        Log::error('Login failed: Firebase Auth is unavailable.', ['reason' => $this->firebaseInitError]);
-        return back()->withErrors([
-            'general' => 'Authentication service is temporarily unavailable.',
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
         ]);
-    }
 
-    try {
-        $signInResult = $this->auth->signInWithEmailAndPassword(
-            $request->email,
-            $request->password
-        );
+        if (! $this->auth) {
+            Log::error('Login failed: Firebase Auth is unavailable.', ['reason' => $this->firebaseInitError]);
 
-        $uid = $signInResult->firebaseUserId();
-        $userData = null;
+            return back()->withErrors([
+                'general' => 'Authentication service is temporarily unavailable.',
+            ]);
+        }
 
-        if ($this->firestore) {
-            $doc = $this->firestore
-                ->collection('Users')
-                ->document($uid)
-                ->snapshot();
+        try {
+            $signInResult = $this->auth->signInWithEmailAndPassword(
+                $request->email,
+                $request->password
+            );
 
-            if ($doc->exists()) {
-                $userData = $doc->data();
+            $uid = $signInResult->firebaseUserId();
+
+            if (! is_string($uid) || $uid === '') {
+                Log::error('Login failed: missing Firebase uid after sign-in.', [
+                    'email' => $request->email,
+                ]);
+
+                return back()->withErrors([
+                    'general' => 'Could not complete sign-in. Please try again.',
+                ]);
             }
+
+            $userData = null;
+
+            if ($this->firestore) {
+                try {
+                    $doc = $this->firestore
+                        ->collection('Users')
+                        ->document($uid)
+                        ->snapshot();
+
+                    if ($doc->exists()) {
+                        $userData = $doc->data();
+                    }
+                } catch (\Throwable $docError) {
+                    Log::warning('Firestore read failed during login (ignored).', [
+                        'uid' => $uid,
+                        'error' => $docError->getMessage(),
+                    ]);
+                }
+            }
+
+            if (! $userData) {
+                $firebaseUser = $this->auth->getUser($uid);
+                $userData = [
+                    'email' => $firebaseUser->email ?? $request->email,
+                    'name' => $firebaseUser->displayName ?? explode('@', $request->email)[0],
+                ];
+            }
+
+            $request->session()->regenerate();
+            $request->session()->put([
+                'firebase_user_id' => $uid,
+                'email' => $userData['email'],
+                'name' => $userData['name'],
+            ]);
+            $request->session()->save();
+
+            return redirect('/dashboard');
+
+        } catch (FailedToSignIn $e) {
+            Log::warning('Firebase sign-in rejected.', ['message' => $e->getMessage()]);
+
+            return back()->withErrors([
+                'general' => 'Invalid email or password.',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Login error', ['message' => $e->getMessage()]);
+
+            return back()->withErrors([
+                'general' => 'Invalid email or password.',
+            ]);
         }
-
-        if (!$userData) {
-            $firebaseUser = $this->auth->getUser($uid);
-            $userData = [
-                'email' => $firebaseUser->email ?? $request->email,
-                'name' => $firebaseUser->displayName ?? explode('@', $request->email)[0],
-            ];
-        }
-
-        // Create and persist session explicitly for custom Firebase auth flow.
-        $request->session()->regenerate();
-        $request->session()->put([
-            'firebase_user_id' => $uid,
-            'email' => $userData['email'],
-            'name' => $userData['name'],
-        ]);
-        $request->session()->save();
-
-        return redirect('/dashboard');
-
-    } catch (\Throwable $e) {
-        Log::error('Login error', ['message' => $e->getMessage()]);
-
-        return back()->withErrors([
-            'general' => 'Invalid email or password.'
-        ]);
     }
-}
+
     // //  REGISTER
     // public function register(Request $request)
     // {
