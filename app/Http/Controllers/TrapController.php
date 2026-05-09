@@ -4,11 +4,51 @@ namespace App\Http\Controllers;
 
 use App\Models\Trap;
 use App\Models\PestAlert;
+use App\Services\DetectedLogsService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class TrapController extends Controller
 {
+    public function dashboard(DetectedLogsService $detectedLogs)
+    {
+        $error = null;
+        $logs = [];
+
+        try {
+            $logs = $detectedLogs->fetchDetectedLogs(250);
+        } catch (\Throwable $e) {
+            Log::warning('DetectedLogs fetch failed', ['message' => $e->getMessage()]);
+            $error = 'Could not load Firestore detectedLogs: '.$e->getMessage();
+        }
+
+        $stats = $detectedLogs->summarizeForDashboard($logs);
+
+        $columnKeys = [];
+        foreach ($logs as $row) {
+            foreach (array_keys($row['fields'] ?? []) as $k) {
+                $columnKeys[$k] = true;
+            }
+        }
+        $columnKeys = array_keys($columnKeys);
+        sort($columnKeys);
+
+        $dynamicKeys = array_values(array_filter($columnKeys, static function (string $k): bool {
+            $norm = strtolower(str_replace('_', '', $k));
+
+            return ! in_array($norm, ['trapid', 'weight'], true);
+        }));
+        sort($dynamicKeys);
+
+        return view('traps.dashboard', [
+            'logs' => $logs,
+            'stats' => $stats,
+            'firestoreError' => $error,
+            'columnKeys' => $columnKeys,
+            'dynamicKeys' => $dynamicKeys,
+        ]);
+    }
+
     public function index()
     {
         $traps = Trap::with(['pestData', 'pestAlerts'])->get();

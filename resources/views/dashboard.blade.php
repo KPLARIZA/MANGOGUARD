@@ -5,27 +5,7 @@
 @section('content')
 <div class="container-fluid px-4 dashboard-page">
     <div class="row g-4 dashboard-shell">
-        <aside class="col-12 col-lg-3 col-xl-2">
-            <div class="card shadow-sm dashboard-sidebar">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Dashboard Menu</h6>
-                </div>
-                <div class="card-body p-2">
-                    <a href="{{ route('traps.index') }}" class="btn btn-warning text-dark btn-icon-split text-decoration-none d-flex align-items-center w-100 mb-2 sidebar-action">
-                        <span class="icon text-body-secondary opacity-75">
-                            <i class="fas fa-spider" aria-hidden="true"></i>
-                        </span>
-                        <span class="text">Trap Insects</span>
-                    </a>
-                    <a href="{{ route('dashboard') }}" class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <i class="fas fa-chart-line me-2" aria-hidden="true"></i> Dashboard Overview
-                    </a>
-                    <a href="{{ route('pest-reports.index') }}" class="sidebar-link {{ request()->routeIs('pest-reports.*') ? 'active' : '' }}">
-                        <i class="fas fa-file-alt me-2" aria-hidden="true"></i> Pest Reports
-                    </a>
-                </div>
-            </div>
-        </aside>
+        @include('partials.dashboard-sidebar')
 
         <main class="col-12 col-lg-9 col-xl-10 dashboard-main">
             <!-- Page Header -->
@@ -589,6 +569,10 @@ function getSeverityClass(severity) {
 .sidebar-action {
     border-radius: 0.65rem;
     font-weight: 600;
+}
+
+.sidebar-action-active {
+    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.35), 0 0.25rem 0.75rem rgba(255, 193, 7, 0.35);
 }
 
 .dashboard-main > .d-flex {

@@ -99,6 +99,7 @@ Route::middleware(['firebase.auth'])->group(function () {
     Route::delete('/pest-data/{pestData}', [PestDataController::class, 'destroy'])->name('pest.data.destroy');
 
     // Trap Routes
+    Route::get('/traps/dashboard', [TrapController::class, 'dashboard'])->name('traps.dashboard');
     Route::get('/traps', [TrapController::class, 'index'])->name('traps.index');
     Route::post('/traps', [TrapController::class, 'store'])->name('traps.store');
     Route::put('/traps/{trap}', [TrapController::class, 'update'])->name('traps.update');

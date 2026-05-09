@@ -14,6 +14,11 @@ return [
                 'url' => env('FIREBASE_DATABASE_URL', 'https://mangoguarddb-default-rtdb.asia-southeast1.firebasedatabase.app'),
             ],
             'storage_bucket' => env('FIREBASE_STORAGE_BUCKET'),
+
+            'firestore' => [
+                /** Firestore collection name for trap insect detection logs */
+                'detected_logs_collection' => env('FIRESTORE_DETECTED_LOGS_COLLECTION', 'detectedLogs'),
+            ],
         ],
     ],
 ];
